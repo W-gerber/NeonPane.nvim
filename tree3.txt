@@ -1,0 +1,16 @@
+show ok=true err=nil
+winbar = [%{%v:lua.require'neo-tree.ui.selector'.get()%}]
+ 1|  ~\AppData\Local\nvim|
+ 2| 󰅂  .claude|
+ 3| 󰅂  build|
+ 4| 󰅂  lua|
+ 5|    .gitignore|
+ 6|    LICENSE|
+ 7|   󰂺 README.md|
+ 8|    init.lua|
+ 9|    lazy-lock.json|
+10|    stylua.toml|
+11|   󰈙 tree.txt|
+12|   󰈙 tree2.txt|
+tree window found = true
+MESSAGES: 
