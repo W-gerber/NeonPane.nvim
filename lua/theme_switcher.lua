@@ -283,7 +283,9 @@ end
 function M.setup()
   pcall(M.apply_saved)
 
-  vim.keymap.set("n", "<leader>th", M.open_picker, { desc = "Theme picker", silent = true })
+  -- <leader>up, with the other UI toggles — picking a theme is the same kind of
+  -- action as toggling transparency, not a separate "tools" category.
+  vim.keymap.set("n", "<leader>up", M.open_picker, { desc = "Theme picker", silent = true })
 
   vim.api.nvim_create_user_command("Theme", function(opts)
     if opts.args == "" then

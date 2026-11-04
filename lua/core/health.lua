@@ -17,9 +17,12 @@ local info = vim.health.info
 ---@param name string
 ---@param opts { required?: boolean, reason: string, install?: string }
 local function check_executable(name, opts)
-  local path = vim.fn.exepath(name)
+  -- `tool_path`, not `exepath`: the features being checked here resolve their
+  -- binaries through Mason and winget's package store too, so a bare PATH
+  -- lookup reports missing tools that the config finds and uses.
+  local path = require("core.utils").tool_path(name)
 
-  if path ~= "" then
+  if path then
     ok(("`%s` found at %s"):format(name, path))
     return true
   end
@@ -71,7 +74,7 @@ local function check_core_tools()
   })
 
   check_executable("lazygit", {
-    reason = "<leader>lg opens Lazygit",
+    reason = "<leader>gl opens Lazygit",
     install = "winget install JesseDuffield.lazygit  |  brew install lazygit",
   })
 end

@@ -13,7 +13,7 @@ local modules = {
   "treesitter",
   "treesitter_context",
   "rainbow_delimiters",
-  "indent_blankline",
+  "snacks", -- animated indent guides + scope line
   "autopairs",
   "flash",
   "mini", -- mini.icons + mini.surround (returns a list)
@@ -42,14 +42,17 @@ local modules = {
   -- Navigation
   "neo_tree",
   "telescope",
+  "telescope_zoxide",
   "window_picker",
   "session_manager",
 
-  -- Terminals / git / AI
+  -- Terminals / git
   "toggleterm",
+  "grug_far", -- project search & replace
+  "diffview",
+  "render_markdown",
   "gitsigns",
   "lazygit",
-  "claudecode",
 
   -- Colorscheme plugins (this one returns a list)
   "colorschemes",

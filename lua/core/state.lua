@@ -70,7 +70,17 @@ function M.update(patch)
     return
   end
 
-  pcall(vim.fn.writefile, { encoded }, STATE_FILE)
+  -- Loud on failure, deliberately. A silent `pcall` here is indistinguishable
+  -- from a preference that "does not stick": the setting applies for the
+  -- session, the write is dropped, and the next start is back where it was.
+  local written, err = pcall(vim.fn.writefile, { encoded }, STATE_FILE)
+  if not written then
+    vim.notify(
+      "Could not save UI preferences to " .. STATE_FILE .. "\n" .. tostring(err),
+      vim.log.levels.ERROR,
+      { title = "State" }
+    )
+  end
 end
 
 --- Write a single key.

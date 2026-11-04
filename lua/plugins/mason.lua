@@ -53,7 +53,9 @@ return {
       --
       -- on every file. conform calls the binary directly and is unaffected.
       automatic_enable = {
-        exclude = { "stylua" },
+        -- Python gets one server, pyright. pylsp would duplicate every
+        -- diagnostic and hover, and ruff already lints through nvim-lint.
+        exclude = { "stylua", "pylsp", "ruff" },
       },
     },
   },
@@ -70,6 +72,8 @@ return {
         "stylua", -- lua formatter
         "google-java-format", -- java formatter
         "shfmt", -- shell formatter
+        "shellcheck", -- shell linter (nvim-lint)
+        "ruff", -- python linter + formatter (nvim-lint, conform)
       },
       auto_update = false,
       run_on_start = true,

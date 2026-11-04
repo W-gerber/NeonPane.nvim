@@ -21,25 +21,19 @@ local icons = require("core.icons")
 -- those onto the palette.
 local FAMILY_COLORS = {
   ["<leader>?"] = "grey", -- Help
-  ["<leader>a"] = "purple", -- Claude Code
+  ["<leader><leader>"] = "blue", -- Window picker
   ["<leader>b"] = "cyan", -- Buffers
   ["<leader>c"] = "yellow", -- Code
   ["<leader>D"] = "red", -- Debug
-  ["<leader>d"] = "green", -- Diagnostics
   ["<leader>e"] = "blue", -- Explorer
   ["<leader>f"] = "green", -- Find
-  ["<leader>g"] = "orange", -- Git
-  ["<leader>h"] = "blue", -- Horizontal split
-  ["<leader>l"] = "orange", -- Lazygit
+  ["<leader>g"] = "orange", -- Git (gitsigns + lazygit)
   ["<leader>m"] = "purple", -- Music
   ["<leader>q"] = "red", -- Close window
   ["<leader>r"] = "yellow", -- Rename
-  ["<leader>s"] = "azure", -- Sessions
-  ["<leader>t"] = "cyan", -- Tools
+  ["<leader>s"] = "azure", -- Splits + sessions
   ["<leader>u"] = "azure", -- UI toggles
-  ["<leader>v"] = "blue", -- Vertical split
-  ["<leader>w"] = "blue", -- Window picker
-  ["<leader>x"] = "red", -- Trouble
+  ["<leader>x"] = "red", -- Trouble + diagnostics
 }
 
 --- The family color for `lhs`; the longest matching prefix wins, which is what
@@ -80,8 +74,11 @@ return {
   keys = {
     {
       "<leader>?",
-      function() require("which-key").show({ global = false }) end,
-      desc = "Buffer keymaps",
+      -- The full keymap tree, not just buffer-local ones. `global = false`
+      -- hides everything defined outside the current buffer, which is almost
+      -- all of this config — so the help key answered a question nobody asks.
+      function() require("which-key").show({ global = true }) end,
+      desc = "All keymaps",
       mode = "n",
     },
   },
@@ -147,9 +144,12 @@ return {
     wk.setup({
       preset = "modern",
       delay = function(ctx) return ctx.plugin and 0 or 180 end,
-      triggers = {
-        { "<leader>", mode = { "n", "v" } },
-      },
+      -- No triggers at all. A trigger is what makes which-key hijack a prefix and
+      -- pop open on its own; with none, Space stays a plain leader that runs its
+      -- sequences without a window ever appearing. The popup is summoned
+      -- explicitly instead — `<Tab>` for the leader tree (core/keymaps.lua) and
+      -- `<leader>?` for everything.
+      triggers = {},
       expand = 1,
       plugins = {
         presets = {
@@ -175,6 +175,13 @@ return {
           winblend = 0,
         },
       },
+      -- which-key's default is `{ "local", "order", "group", "alphanum", "mod" }`,
+      -- where "group" means *groups last*. That splits the popup into two
+      -- alphabets: every single mapping in order, then every group in order —
+      -- so <leader>b (Buffers) sits below <leader>x rather than after
+      -- <leader>?. Dropping "group" files groups in their alphabetical place,
+      -- which makes the list one sequence you can scan straight down.
+      sort = { "local", "order", "alphanum", "mod" },
       layout = {
         width = { min = 26, max = 42 },
         spacing = 4,
@@ -207,20 +214,8 @@ return {
     ui.on_theme_change(which_key_group, apply_which_key_highlights)
 
     wk.add(colorize({
-      -- Claude Code
-      { "<leader>a", group = "Claude Code", icon = "󰚩" },
-      { "<leader>ac", desc = "Toggle Claude", icon = "󰚩" },
-      { "<leader>af", desc = "Focus Claude", icon = "󰈈" },
-      { "<leader>ar", desc = "Resume Claude", icon = "󰜉" },
-      { "<leader>aC", desc = "Continue Claude", icon = "󰐊" },
-      { "<leader>am", desc = "Select model", icon = "󰍛" },
-      { "<leader>ab", desc = "Add current buffer", icon = "󰐕" },
-      { "<leader>as", desc = "Send selection", icon = "󰒊", mode = "v" },
-      { "<leader>aa", desc = "Accept diff", icon = "󰄬" },
-      { "<leader>ad", desc = "Deny diff", icon = "󰅖" },
-
       -- Buffers
-      { "<leader>?", desc = "Buffer keymaps", icon = "󰋖" },
+      { "<leader>?", desc = "All keymaps", icon = "󰋖" },
       { "<leader>b", group = "Buffers", icon = "󰓩" },
       { "<leader>bn", desc = "New buffer", icon = "󰈔" },
       { "<leader>bc", desc = "Close buffer", icon = "󰅖" },
@@ -253,9 +248,11 @@ return {
       { "<leader>Du", desc = "Toggle debugger UI", icon = "\u{f0c9}" },
       { "<leader>De", desc = "Evaluate expression", icon = "󰘦", mode = { "n", "v" } },
 
-      -- LSP / diagnostics
-      { "<leader>rn", desc = "Rename symbol", icon = "󰑕" },
-      { "<leader>d", desc = "Line diagnostics", icon = "󰒡" },
+      -- Kept working, kept out of the popup. Dropping the entry alone is not
+      -- enough — which-key discovers any mapping that carries a `desc`, so
+      -- these have to be hidden explicitly (see tree.lua's `node.hidden`).
+      { "<leader>rn", hidden = true },
+      { "<leader>q", hidden = true },
 
       -- File explorer
       { "<leader>e", desc = "Explorer", icon = "󰙅" },
@@ -267,7 +264,6 @@ return {
       { "<leader>fe", desc = "File browser (workspace)", icon = "󰝰" },
       { "<leader>fE", desc = "File browser (current file)", icon = "󰉖" },
       { "<leader>fw", desc = "Grep word under cursor", icon = "󰈬" },
-      { "<leader>fb", desc = "Open buffers", icon = "󰈚" },
       { "<leader>fr", desc = "Recent files", icon = "\u{f0954}" },
       { "<leader>fh", desc = "Help tags", icon = "󰋖" },
       { "<leader>fk", desc = "Keymaps", icon = "\u{f030c}" },
@@ -291,6 +287,8 @@ return {
       { "<leader>gB", desc = "Toggle inline blame", icon = "󰜘" },
       { "<leader>gd", desc = "Diff against index", icon = "\u{f0200}" },
       { "<leader>gD", desc = "Diff against last commit", icon = "\u{f0200}" },
+      { "<leader>gl", desc = "Open Lazygit", icon = "󰖳" },
+      { "<leader>gL", desc = "Current file in Lazygit", icon = "󰈙" },
 
       -- Music (core/music.lua)
       { "<leader>m", group = "Music", icon = "󰝚" },
@@ -299,32 +297,21 @@ return {
       { "<leader>mn", desc = "Next track", icon = "󰒭" },
       { "<leader>mb", desc = "Previous track", icon = "󰒮" },
       { "<leader>mS", desc = "Stop", icon = "󰓛" },
-      { "<leader>mu", desc = "Volume up", icon = "󰝝" },
-      { "<leader>md", desc = "Volume down", icon = "󰝞" },
+      -- No mu/md here. An entry whose keymap does not exist still renders — as
+      -- a row with an empty description — so leaving these behind after the
+      -- volume keys were removed put two ghosts in the Music group.
       { "<leader>mv", desc = "Set volume", icon = "󰕾" },
 
-      -- Lazygit wrapper
-      { "<leader>l", group = "Lazygit", icon = "󰊢" },
-      { "<leader>lg", desc = "Open Lazygit", icon = "󰖳" },
-      { "<leader>lG", desc = "Current file in Lazygit", icon = "󰈙" },
-
       -- Windows
-      { "<leader>q", desc = "Close window", icon = "󰅖" },
-      { "<leader>vs", desc = "Vertical split (pick window)", icon = "\u{f0bdc}" },
-      { "<leader>hs", desc = "Horizontal split (pick window)", icon = "\u{f0bdb}" },
-      { "<leader>wp", desc = "Jump to window", icon = "\u{f0bdc}" },
+      { "<leader>w", desc = "Jump to window", icon = "\u{f0bdc}" },
 
-      -- Sessions. Todo search used to live here too; it moved to <leader>f
-      -- so this prefix means exactly one thing.
-      { "<leader>s", group = "Sessions", icon = "󱂬" },
+      -- Splits and sessions
+      { "<leader>s", group = "Split / session", icon = "󱂬" },
+      { "<leader>sv", desc = "Vertical split (pick window)", icon = "\u{f0bdc}" },
+      { "<leader>sh", desc = "Horizontal split (pick window)", icon = "\u{f0bdb}" },
       { "<leader>sl", desc = "Load session", icon = "󰦛" },
       { "<leader>ss", desc = "Save session", icon = "󰆓" },
       { "<leader>sd", desc = "Delete session", icon = "󰆴" },
-
-      -- Tools / misc
-      { "<leader>t", group = "Tools", icon = "󱁤" },
-      { "<leader>tt", desc = "Toggle terminal", icon = "󰆍" },
-      { "<leader>th", desc = "Theme picker", icon = "󰏘" },
 
       -- UI toggles
       { "<leader>u", group = "UI toggles", icon = "\u{f0335}" },
@@ -335,12 +322,16 @@ return {
       { "<leader>uf", desc = "Toggle diagnostic float", icon = "\u{f0559}" },
       { "<leader>uV", desc = "Toggle diagnostic virtual lines", icon = "\u{f0e7b}" },
       { "<leader>uv", desc = "Toggle window dimming", icon = "\u{f0335}" },
-      { "<leader>ua", desc = "Toggle dashboard style", icon = "\u{f0f3d}" },
+      { "<leader>ua", desc = "Dashboard style picker", icon = "\u{f0f3d}" },
+      { "<leader>ut", desc = "Toggle terminal", icon = "󰆍" },
+      { "<leader>uT", desc = "New terminal tab", icon = "\u{f0416}" },
+      { "<leader>up", desc = "Theme picker", icon = "󰏘" },
 
       -- Trouble (diagnostics UI)
       { "<leader>x", group = "Trouble", icon = "󱍼" },
       { "<leader>xx", desc = "Diagnostics", icon = "󰒡" },
       { "<leader>xX", desc = "Buffer diagnostics", icon = "󰈙" },
+      { "<leader>xd", desc = "Line diagnostics", icon = "󰒡" },
       { "<leader>xs", desc = "Symbols", icon = "󰘦" },
       { "<leader>xr", desc = "LSP list", icon = "󰒋" },
       { "<leader>xL", desc = "Location list", icon = "󰈚" },
@@ -360,6 +351,13 @@ return {
       { "gsF", desc = "Find surrounding (left)", icon = "󰍉" },
       { "gsh", desc = "Highlight surrounding", icon = "\u{f0335}" },
       { "gsn", desc = "Update search lines", icon = "\u{f0e7b}" },
+
+      -- Terminal tabs. Not under a trigger prefix, so these only surface in
+      -- <leader>? — which is exactly where you go looking for "what was the key
+      -- for a second terminal again".
+      { "<A-t>", desc = "New terminal tab", mode = { "n", "t" } },
+      { "<A-.>", desc = "Next terminal tab", mode = { "n", "t" } },
+      { "<A-,>", desc = "Previous terminal tab", mode = { "n", "t" } },
 
       -- Bracket motions. Lowercase pairs are "things in the file" (hunks,
       -- diagnostics, todos); uppercase is reserved for structural jumps that

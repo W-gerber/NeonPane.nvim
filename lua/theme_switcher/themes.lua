@@ -1,4 +1,4 @@
--- Theme registry used by the picker (<leader>th) and the :Theme command.
+-- Theme registry used by the picker (<leader>up) and the :Theme command.
 --
 -- Each entry describes one selectable theme:
 --

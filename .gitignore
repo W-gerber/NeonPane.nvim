@@ -1,30 +1,33 @@
-# Neovim runtime files
+# Neovim runtime / build artefacts
 build/
 .nvim/
+plugin/
+session/
 
-# Log files
+# Logs
 *.log
 *-headless.log
-$log
 
-# Test and validation files
+# Local scratch and validation files
 _neotree_theme_test.txt
 nvim_validate
 
-# Plugin data (managed by lazy.nvim)
-plugin/
-lazy-lock.json
+# Per-machine tool settings
+.claude/settings.local.json
 
-# Session files
-session/
+# Interrupted :TSInstall runs leave clones here; they block later installs
+tree-sitter-*/
 
-# OS files
+# OS noise
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# Backup files
+# Editor backups
 *.bak
 *.swp
 *.swo
 *~
+
+# NOTE: lazy-lock.json is deliberately NOT ignored. Committing it is what makes
+# the plugin set reproducible across machines (`:Lazy restore`).

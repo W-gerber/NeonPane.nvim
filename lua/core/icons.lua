@@ -22,9 +22,16 @@ return {
     added = "\u{f067}", -- plus
     modified = "\u{f444}", -- filled dot
     removed = "\u{f068}", -- minus
-    renamed = "\u{f554}",
-    untracked = "\u{f128}",
-    ignored = "\u{f474}",
+    -- Nerd Fonts v3 moved the Octicons block. `\u{f554}` was
+    -- `nf-oct-diff_renamed` under v2 and is unassigned in v3, so it rendered as
+    -- a replacement box in Neo-tree's git column. This is the same glyph at its
+    -- current codepoint.
+    renamed = "\u{f45a}", -- nf-oct-diff_renamed
+    -- "?" for untracked is the git convention (and what `git status --short`
+    -- prints), so this is meant to be a question mark. It was the FontAwesome
+    -- one while everything around it is an Octicon; this is the Octicon.
+    untracked = "\u{f420}", -- nf-oct-question
+    ignored = "\u{f474}", -- nf-oct-diff_ignored
   },
 
   -- Files / buffers
@@ -34,7 +41,9 @@ return {
     new = "\u{f016}", -- file outline
     folder = "\u{e5ff}", -- closed folder
     folder_open = "\u{e5fe}",
-    folder_empty = "\u{f414}",
+    -- `\u{f414}` is `nf-oct-file_submodule` in v3 — a submodule marker, not an
+    -- empty folder. It is a real glyph, so it drew fine and drew the wrong thing.
+    folder_empty = "\u{f0256}", -- nf-md-folder_outline
   },
 
   -- Chrome / decorations
@@ -52,17 +61,22 @@ return {
   },
 
   -- Debugger (plugins/dap.lua)
+  --
+  -- These were the worst of the v2 leftovers: every one still resolved to a
+  -- glyph, so nothing looked broken, but the glyphs were a pin, a pine tree, a
+  -- wall sconce and a meteor. The Codicons below are VS Code's own debugger
+  -- set, which is what these markers are imitating in the first place.
   dap = {
-    breakpoint = "\u{f0403}", -- filled circle
-    breakpoint_conditional = "\u{f0405}",
-    breakpoint_rejected = "\u{f0748}",
-    log_point = "\u{f0629}",
-    stopped = "\u{f04b}", -- play
+    breakpoint = "\u{f0ec2}", -- nf-md-record_circle
+    breakpoint_conditional = "\u{eaa7}", -- nf-cod-debug_breakpoint_conditional
+    breakpoint_rejected = "\u{eb8c}", -- nf-cod-debug_breakpoint_unsupported
+    log_point = "\u{eaab}", -- nf-cod-debug_breakpoint_log
+    stopped = "\u{eb8b}", -- nf-cod-debug_stackframe
   },
 
   -- Media (core/music.lua)
   music = {
-    playing = "\u{f0386}", -- music note
+    playing = "\u{f0387}", -- nf-md-music_note (f0386 is music_circle)
     paused = "\u{f03e4}", -- pause
     stopped = "\u{f04db}", -- stop
   },

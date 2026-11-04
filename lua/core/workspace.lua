@@ -78,25 +78,34 @@ function M.pick_folder()
     -- PowerShell mixes in warnings/CLIXML noise on the same streams.
     local marker = "NVIM_PICKED>"
     local ps = table.concat({
+      -- Without this, stdout is encoded in the console's OEM codepage (437 or
+      -- similar), which has no room for most of Unicode: every character
+      -- outside it arrives as a literal "?". A folder whose name contains an
+      -- emoji or an accent then comes back as a path that does not exist, and
+      -- opening it fails with "folder not found" naming a path with "?" in it.
+      "[Console]::OutputEncoding = [Text.Encoding]::UTF8;",
       "Add-Type -AssemblyName System.Windows.Forms;",
       "$f = New-Object System.Windows.Forms.FolderBrowserDialog;",
       "$f.Description = 'Open Folder as Workspace';",
       "$f.ShowNewFolderButton = $true;",
-      "if ($f.ShowDialog() -eq 'OK') { Write-Output ('" .. marker .. "' + $f.SelectedPath) }",
+      -- `[Console]::Out.Write` rather than `Write-Output`: it emits the string
+      -- verbatim, bypassing PowerShell's formatter, which pads and line-wraps
+      -- pipeline output at the console width and would split a long path
+      -- across several lines.
+      "if ($f.ShowDialog() -eq 'OK') { [Console]::Out.Write('" .. marker .. "' + $f.SelectedPath) }",
     }, " ")
 
     -- Prefer pwsh (PowerShell 7): its FolderBrowserDialog is the modern
     -- Vista-style picker; Windows PowerShell falls back to the classic tree.
     -- -STA is required for Windows Forms dialogs.
     local shell = vim.fn.executable("pwsh") == 1 and "pwsh" or "powershell"
-    local lines = vim.fn.systemlist({ shell, "-NoProfile", "-STA", "-Command", ps }) or {}
+    -- `system` and not `systemlist`: the path is written as one unterminated
+    -- chunk, and splitting on newlines is what a wrapped path would defeat.
+    local output = vim.fn.system({ shell, "-NoProfile", "-STA", "-Command", ps }) or ""
 
-    for _, line in ipairs(lines) do
-      local picked = line:match(vim.pesc(marker) .. "%s*(.-)%s*$")
-      if picked and picked ~= "" then
-        dir = picked
-        break
-      end
+    local picked = output:match(vim.pesc(marker) .. "(.*)$")
+    if picked then
+      dir = vim.trim(picked)
     end
 
     -- Dialog ran fine but produced no path: the user hit Cancel.

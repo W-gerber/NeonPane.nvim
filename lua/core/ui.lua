@@ -213,10 +213,30 @@ end
 --- terminal is already doing properly one layer down. The only way to let that
 --- effect through is to draw no background at all and let the panel read from
 --- its rim, its title and its text.
----@param level? number frost level used when the editor is not transparent
+--- Opaque panels use the theme's *own* raised surface rather than a frost.
+---
+--- `frost()` lifts toward pure white, which desaturates as it lightens. That is
+--- fine on a near-neutral backdrop and wrong on a saturated one: SynthWave '84
+--- sits at #262335, a deep violet, and `frost(0.1)` turns that into #3c3949 —
+--- essentially grey. Every panel then reads as a dirty box floating over a
+--- violet editor, which is what "looks bad with transparency off" is.
+---
+--- `palette.panel` is the surface the theme itself declares (SynthWave gives
+--- #2a2139, the same violet one step lighter), falling back to an
+--- accent-tinted derivation for themes that declare nothing. Either way the
+--- hue survives the lift.
+---
+--- `frost()` is deliberately left alone: the cursorline and selected rows want
+--- a neutral lift precisely *because* it reads as "brighter", not "tinted".
+---@param level? number surface weight; above ~0.12 picks the next step up
 ---@return string
 function M.pane_bg(level)
-  return vim.g.ui_transparent and "NONE" or M.frost(level)
+  if vim.g.ui_transparent then
+    return "NONE"
+  end
+
+  local palette = M.palette()
+  return (level or 0.08) > 0.12 and palette.panel_alt or palette.panel
 end
 
 --- True when the active theme is a dark one (falls back to foreground brightness).

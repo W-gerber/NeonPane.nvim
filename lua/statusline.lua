@@ -48,11 +48,6 @@ end
 
 local function has_lsp_client() return lsp_client() ~= "" end
 
-local function music_segment()
-  local ok, music = pcall(require, "core.music")
-  return ok and music.statusline() or ""
-end
-
 --- A rounded pill on the given surface color.
 ---
 --- Themes that declare `neon_glow` get bold pill text. A terminal cannot do the
@@ -117,7 +112,10 @@ local function setup()
         { "mode", separator = ROUNDED, padding = { left = 1, right = 1 } },
       },
       lualine_b = {
-        pill({ "branch", icon = icons.git.branch }, p.panel, p.cyan),
+        -- Git orange, the colour git itself uses, rather than the generic
+        -- accent — it is the one segment that is about git rather than about
+        -- the file, and the hue is what says so at a glance.
+        pill({ "branch", icon = icons.git.branch }, p.panel, p.orange),
         pill({
           "diff",
           source = diff_source,
@@ -148,6 +146,16 @@ local function setup()
         }, p.panel_soft, on_panel_soft),
       },
       lualine_c = {
+        -- A transparent gap before the first pill of the section.
+        --
+        -- Without it the filename pill (lualine_b) and this one are adjacent,
+        -- and lualine bridges two touching components with a *transitional*
+        -- highlight whose background is the neighbouring pill's colour rather
+        -- than NONE. The rounded caps then sit on a solid rectangle instead of
+        -- on the terminal, which reads as a box behind the diagnostics — and
+        -- only appears once a diagnostic exists, because an empty component
+        -- generates no transition at all.
+        spacer(1),
         pill({
           "diagnostics",
           sources = { "nvim_diagnostic" },
@@ -168,23 +176,7 @@ local function setup()
         }, p.panel, on_panel),
       },
       lualine_x = {
-        pill({
-          music_segment,
-          cond = function() return music_segment() ~= "" end,
-          color = function()
-            local ok, music = pcall(require, "core.music")
-            local status = ok and music.statusline_status and music.statusline_status() or nil
-            local fg = p.muted
-
-            if status == "Playing" then
-              fg = p.green
-            elseif status == "Paused" then
-              fg = p.yellow
-            end
-
-            return { fg = fg, bg = p.panel }
-          end,
-        }, p.panel, on_panel),
+        -- Now playing moved to the tabline's top-right pill (see lua/tabline.lua).
         pill({ lsp_client, cond = has_lsp_client }, p.panel_alt, on_panel_alt),
         pill({ "filetype", colored = true, icon_only = false }, p.panel_soft, on_panel_soft),
       },

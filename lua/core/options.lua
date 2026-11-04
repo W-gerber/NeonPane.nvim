@@ -3,6 +3,9 @@
 local opt = vim.opt
 
 -- Leader keys must be set before any mapping that uses them.
+--
+-- Space stays the leader, so every `<leader>x` sequence keeps working as it
+-- always has. core/keymaps.lua adds Tab as a second way into the same tree.
 vim.g.mapleader = " "
 vim.g.maplocalleader = " "
 
@@ -163,6 +166,13 @@ prepend_to_path(vim.fn.stdpath("data") .. "/mason/bin")
 -- whenever the variable is unset, and `ipairs` stops at that hole — which is
 -- why the fallbacks below were previously never tried at all.
 if is_windows then
+  -- Launched from Git Bash, Neovim inherits $SHELL=bash but keeps cmd.exe's
+  -- `/s /c` flags, so every string command (toggleterm, `:!`, lazygit) dies
+  -- with exit 127 before the shell starts. Put cmd.exe back to match the flags.
+  if not vim.o.shell:lower():find("cmd") then
+    vim.o.shell = "cmd.exe"
+  end
+
   local found = prepend_to_path(vim.env.MINGW64_BIN)
 
   if not found then

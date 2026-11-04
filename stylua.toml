@@ -1,0 +1,9 @@
+column_width = 110
+line_endings = "Unix"
+indent_type = "Spaces"
+indent_width = 2
+quote_style = "AutoPreferDouble"
+call_parentheses = "Always"
+# Keep short one-line callbacks (`function() foo() end`) compact — that is the
+# style the rest of this config is written in.
+collapse_simple_statement = "FunctionOnly"

@@ -17,12 +17,13 @@ local defaults = {
     ellipsis = icons.ui.ellipsis,
     modified = icons.file.modified,
     folder = icons.file.folder,
-    clock = icons.ui.clock,
     project = icons.ui.home,
   },
   max_name_len = 18,
   padding = 1, -- horizontal padding inside the main pill
-  badge_padding = 0, -- horizontal padding inside the index badge
+  -- Inset from the screen edges. Matches the statusline's `spacer(2)`, which is
+  -- what puts the first buffer pill in the same column as the mode pill.
+  edge_padding = 2,
 }
 
 local function config() return M._config or defaults end
@@ -39,15 +40,10 @@ local function setup_highlights()
   local inactive_bg = p.panel
   local active_fg = ui.contrast(active_bg)
   local status_bg = p.panel
-  local clock_bg = p.panel_alt
-
-  local active_badge_bg = ui.blend(p.accent, active_bg, 0.35)
-  local inactive_badge_bg = ui.blend(p.accent, inactive_bg, 0.20)
 
   -- Themes that declare `neon_glow` push the active pill's accent further, the
   -- terminal-safe stand-in for the original's bloom.
   if p.glow then
-    active_badge_bg = ui.blend(p.glow_accent, active_bg, 0.45)
     active_fg = ui.contrast(active_bg, p.bg, p.glow_accent)
   end
 
@@ -60,18 +56,14 @@ local function setup_highlights()
   hl(0, "TabLinePillActiveLeft", { fg = active_bg, bg = "NONE" })
   hl(0, "TabLinePillActiveText", { fg = active_fg, bg = active_bg, bold = true })
   hl(0, "TabLinePillActiveRight", { fg = active_bg, bg = "NONE" })
-  hl(0, "TabLinePillActiveBadgeLeft", { fg = active_badge_bg, bg = active_bg })
-  hl(0, "TabLinePillActiveBadgeText", { fg = p.accent, bg = active_badge_bg, bold = true })
-  hl(0, "TabLinePillActiveBadgeRight", { fg = active_badge_bg, bg = active_bg })
+  hl(0, "TabLinePillActiveIndex", { fg = p.accent, bg = active_bg, bold = true })
   hl(0, "TabLinePillActiveMod", { fg = p.yellow, bg = active_bg, bold = true })
 
   -- Inactive pill: muted but still legible.
   hl(0, "TabLinePillInactiveLeft", { fg = inactive_bg, bg = "NONE" })
   hl(0, "TabLinePillInactiveText", { fg = p.muted, bg = inactive_bg })
   hl(0, "TabLinePillInactiveRight", { fg = inactive_bg, bg = "NONE" })
-  hl(0, "TabLinePillInactiveBadgeLeft", { fg = inactive_badge_bg, bg = inactive_bg })
-  hl(0, "TabLinePillInactiveBadgeText", { fg = p.muted, bg = inactive_badge_bg })
-  hl(0, "TabLinePillInactiveBadgeRight", { fg = inactive_badge_bg, bg = inactive_bg })
+  hl(0, "TabLinePillInactiveIndex", { fg = ui.blend(p.accent, p.muted, 0.5), bg = inactive_bg })
   hl(0, "TabLinePillInactiveMod", { fg = p.orange, bg = inactive_bg })
 
   -- Right-hand utility pills mirror the statusline's segmented look.
@@ -79,10 +71,12 @@ local function setup_highlights()
   hl(0, "TabLinePillStatusText", { fg = ui.contrast(status_bg), bg = status_bg, bold = true })
   hl(0, "TabLinePillStatusRight", { fg = status_bg, bg = "NONE" })
 
-  hl(0, "TabLinePillClockLeft", { fg = clock_bg, bg = "NONE" })
-  hl(0, "TabLinePillClockText", { fg = ui.contrast(clock_bg), bg = clock_bg, bold = true })
-  hl(0, "TabLinePillClockIcon", { fg = p.accent, bg = clock_bg, bold = true })
-  hl(0, "TabLinePillClockRight", { fg = clock_bg, bg = "NONE" })
+  -- Now playing, as a run inside the status pill: same background, so only the
+  -- foreground says whether anything is playing. Idle recedes to muted; playing
+  -- takes the green and bold. The divider is dimmer than either.
+  hl(0, "TabLinePillStatusMusic", { fg = p.muted, bg = status_bg })
+  hl(0, "TabLinePillStatusMusicPlaying", { fg = p.green, bg = status_bg, bold = true })
+  hl(0, "TabLinePillStatusSep", { fg = ui.blend(p.muted, status_bg, 0.5), bg = status_bg })
 end
 
 -- ---------------------------------------------------------------------------
@@ -119,20 +113,6 @@ local function pill_segment(left_hl, text_hl, right_hl, left_glyph, right_glyph,
   return string.format("%%#%s#%s%%#%s#%s%%#%s#%s", left_hl, left_glyph, text_hl, text, right_hl, right_glyph)
 end
 
-local function badge_segment(cfg, index, is_active)
-  local pad = string.rep(" ", cfg.badge_padding)
-  local prefix = is_active and "TabLinePillActiveBadge" or "TabLinePillInactiveBadge"
-
-  return pill_segment(
-    prefix .. "Left",
-    prefix .. "Text",
-    prefix .. "Right",
-    cfg.glyphs.left,
-    cfg.glyphs.right,
-    pad .. tostring(index) .. pad
-  )
-end
-
 local function file_icon(name)
   local ok, devicons = pcall(require, "nvim-web-devicons")
   if not ok then
@@ -143,6 +123,16 @@ local function file_icon(name)
   return type(icon) == "string" and icon or ""
 end
 
+--- One buffer, as a rounded pill: `1  init.lua ●`.
+---
+--- The index used to be a pill of its own nested inside this one, which put two
+--- sets of rounded caps and three background shades into a chip the width of a
+--- filename. It is now just the leading glyph run, tinted rather than boxed:
+--- the information is identical and there is one shape instead of two.
+---
+--- Order is index, icon, name, modified — fixed, so the eye can land on the
+--- same spot in every pill rather than hunting for a marker whose position
+--- depends on how long the name is.
 local function buffer_pill(cfg, bufnr, index, is_current)
   local name = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t")
   if name == "" then
@@ -157,19 +147,22 @@ local function buffer_pill(cfg, bufnr, index, is_current)
 
   local modified = vim.bo[bufnr].modified
   local pad = string.rep(" ", cfg.padding)
-  local badge = badge_segment(cfg, index, is_current)
   local prefix = is_current and "TabLinePillActive" or "TabLinePillInactive"
-  local modified_mark = modified
-      and string.format("%%#%sMod# %s%%#%sText#", prefix, cfg.glyphs.modified, prefix)
-    or ""
 
-  local text = pad
+  -- A dot, and only when dirty. The slot is not reserved: a column of mostly
+  -- blank space between every name and the pill's edge reads as a rendering
+  -- fault rather than as an absent marker.
+  local modified_mark = modified and string.format("%%#%sMod# %s", prefix, cfg.glyphs.modified) or ""
+
+  local text = string.format("%%#%sIndex#", prefix)
+    .. pad
+    .. tostring(index)
+    .. "  "
+    .. string.format("%%#%sText#", prefix)
     .. icon
     .. name
-    .. pad
-    .. badge
-    .. string.format("%%#%sText#", prefix)
     .. modified_mark
+    .. string.format("%%#%sText#", prefix)
     .. pad
 
   -- `%<n>@fn@ ... %X` makes the pill clickable (left = focus, middle = close).
@@ -185,30 +178,53 @@ local function buffer_pill(cfg, bufnr, index, is_current)
     .. "%X"
 end
 
+--- Now playing, as a run of text *inside* the workspace pill.
+---
+--- Not a pill of its own: two adjacent chips with two sets of rounded caps for
+--- what is really one status readout made the right-hand end of the bar busier
+--- the moment anything started playing. This returns bare text on the
+--- workspace pill's own background, so the pill simply grows to hold it and
+--- the shape of the bar never changes.
+---@return string
+local function music_run()
+  local ok, music = pcall(require, "core.music")
+  if not ok then
+    return ""
+  end
+
+  local ok_text, text = pcall(music.statusline)
+  if not ok_text or type(text) ~= "string" or text == "" then
+    return ""
+  end
+
+  local status = nil
+  if type(music.statusline_status) == "function" then
+    local ok_status, value = pcall(music.statusline_status)
+    status = ok_status and value or nil
+  end
+
+  -- Playing is lit; paused and stopped recede. Both sit on the status pill's
+  -- background so the run reads as part of it rather than as an inlay.
+  local group = status == "Playing" and "TabLinePillStatusMusicPlaying" or "TabLinePillStatusMusic"
+
+  return string.format("%%#%s#%s  %%#TabLinePillStatusSep#%s  ", group, text, icons.ui.separator)
+end
+
 local function status_pills(cfg)
   local cwd = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
   local filetype = vim.bo.filetype
   local status_icon = filetype == "alpha" and cfg.glyphs.project or cfg.glyphs.folder
 
-  local icon_pill = pill_segment(
+  -- One pill holding everything on the right: now playing (when there is any),
+  -- then a thin divider, then the workspace icon and name.
+  return pill_segment(
     "TabLinePillStatusLeft",
     "TabLinePillStatusText",
     "TabLinePillStatusRight",
     cfg.glyphs.left,
     cfg.glyphs.right,
-    " " .. status_icon .. " "
+    " " .. music_run() .. "%#TabLinePillStatusText#" .. status_icon .. " " .. cwd .. " "
   )
-
-  local clock_pill = pill_segment(
-    "TabLinePillClockLeft",
-    "TabLinePillClockText",
-    "TabLinePillClockRight",
-    cfg.glyphs.left,
-    cfg.glyphs.right,
-    " %#TabLinePillClockIcon#" .. cfg.glyphs.clock .. "%#TabLinePillClockText# " .. os.date("%H:%M") .. " "
-  )
-
-  return icon_pill .. "%#TabLineFill# " .. cwd .. "  " .. clock_pill
 end
 
 --- Handles clicks on a buffer pill (see the `%@` item above).
@@ -239,7 +255,14 @@ function _G.CustomBufferTabline()
   -- Stable ordering for <A-1>..<A-9> and <C-Tab>.
   M.state.buffers = buffers
 
-  local parts = {}
+  -- Both ends are inset by the same amount the statusline uses (its lualine_a
+  -- and lualine_z are each a `spacer(2)`), so the first buffer pill starts in
+  -- the same column as the NORMAL/INSERT mode pill below it and the workspace
+  -- pill ends in the same column as the one at the far right. Without this the
+  -- tabline sits flush against the edge while the statusline floats, and the
+  -- two bars read as belonging to different UIs.
+  local parts = { "%#TabLineFill#" .. string.rep(" ", cfg.edge_padding) }
+
   for index, bufnr in ipairs(buffers) do
     parts[#parts + 1] = buffer_pill(cfg, bufnr, index, bufnr == current)
     parts[#parts + 1] = "%#TabLineFill# "
@@ -247,6 +270,7 @@ function _G.CustomBufferTabline()
 
   parts[#parts + 1] = "%#TabLineFill#%="
   parts[#parts + 1] = status_pills(cfg)
+  parts[#parts + 1] = "%#TabLineFill#" .. string.rep(" ", cfg.edge_padding)
 
   return table.concat(parts)
 end
@@ -298,30 +322,6 @@ local function close_current(force)
   require("core.utils").safe_bufdelete(vim.api.nvim_get_current_buf(), force)
 end
 
---- Redraw at most once a minute, since the clock only shows HH:MM.
-local function start_clock()
-  if M._timer then
-    pcall(function()
-      M._timer:stop()
-      M._timer:close()
-    end)
-  end
-
-  local last = os.date("%H:%M")
-  M._timer = vim.uv.new_timer()
-  M._timer:start(
-    15000,
-    15000,
-    vim.schedule_wrap(function()
-      local now = os.date("%H:%M")
-      if now ~= last then
-        last = now
-        vim.cmd("redrawtabline")
-      end
-    end)
-  )
-end
-
 function M.setup(opts)
   M._config = vim.tbl_deep_extend("force", {}, defaults, opts or {})
 
@@ -357,20 +357,45 @@ function M.setup(opts)
     vim.cmd("redrawtabline")
   end)
 
-  vim.api.nvim_create_autocmd("VimLeavePre", {
-    group = group,
-    callback = function()
-      if M._timer then
-        pcall(function()
-          M._timer:stop()
-          M._timer:close()
-        end)
-        M._timer = nil
-      end
-    end,
-  })
+  -- The now-playing pill is the one part of this bar that changes without a
+  -- buffer event to announce it, so it needs a tick of its own.
+  --
+  -- 5s is cheap: the tick only rebuilds a string. It does not talk to Windows —
+  -- `music.statusline()` rate-limits its own PowerShell polling to between 10s
+  -- and 60s depending on whether anything is playing, and this only reads the
+  -- cache that fills. Redrawing only when the rendered text actually changed
+  -- keeps an idle editor from repainting the tabline every five seconds.
+  if vim.fn.has("win32") == 1 then
+    local last = nil
 
-  start_clock()
+    M._music_timer = vim.uv.new_timer()
+    M._music_timer:start(
+      5000,
+      5000,
+      vim.schedule_wrap(function()
+        local ok, music = pcall(require, "core.music")
+        local text = ok and select(2, pcall(music.statusline)) or ""
+
+        if text ~= last then
+          last = text
+          vim.cmd("redrawtabline")
+        end
+      end)
+    )
+
+    vim.api.nvim_create_autocmd("VimLeavePre", {
+      group = group,
+      callback = function()
+        if M._music_timer then
+          pcall(function()
+            M._music_timer:stop()
+            M._music_timer:close()
+          end)
+          M._music_timer = nil
+        end
+      end,
+    })
+  end
 end
 
 return M

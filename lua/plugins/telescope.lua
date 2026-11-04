@@ -282,7 +282,6 @@ return {
       end,
       desc = "File browser (current file)",
     },
-    { "<leader>fb", "<cmd>Telescope buffers<cr>", desc = "Open buffers" },
     { "<leader>fh", "<cmd>Telescope help_tags<cr>", desc = "Help tags" },
     { "<leader>fr", "<cmd>Telescope oldfiles<cr>", desc = "Recent files" },
     { "<leader>fw", "<cmd>Telescope grep_string<cr>", desc = "Grep word under cursor" },

@@ -191,6 +191,79 @@ local function style_code_overlays(palette)
   })
 end
 
+--- Style the current-line indicator.
+---
+--- A band is a full-width *opaque* run of cells — there is no such thing as a
+--- translucent one in a terminal. With glass off that is fine: `ui.frost(0.07)`
+--- lands ~15 points of luminance above the backdrop, which reads as a lift
+--- rather than a slab, and being neutral rather than accent-tinted it does not
+--- turn into colored film on themes with a vivid accent.
+---
+--- The tint is the theme's *accent* rather than a neutral white lift. A neutral
+--- band is the safe choice at panel size — see `ui.frost()` — but the cursorline
+--- is one row, not a sheet, and at this strength the accent reads as "this line
+--- is selected" instead of as colored film. It also keeps the band related to
+--- the accent-bold line number sitting in the gutter beside it, so the two look
+--- like one indicator rather than two unrelated ones.
+---
+--- 0.10 is deliberately low. Under glass the band is opaque against a
+--- see-through editor, so it carries much further than the same number would
+--- over a solid backdrop; anything stronger stops reading as a highlight and
+--- starts reading as a block of color.
+---
+--- `cursorlineopt` is deliberately left alone. Setting it globally would also
+--- strip the selected row in neo-tree, which routes `CursorLine` through
+--- `winhighlight` to its own group.
+---
+--- Override with `vim.g.cursorline_style`:
+---   "auto"   (default) accent-tinted band, in both glass and opaque modes
+---   "frost"  the old neutral white lift
+---   "number" no band at all; the accent line number marks the line
+---   "theme"  leave whatever the colorscheme declared
+---@param palette table
+local function style_cursorline(palette)
+  local style = vim.g.cursorline_style
+  if style ~= "frost" and style ~= "number" and style ~= "theme" then
+    style = "auto"
+  end
+
+  if style == "theme" then
+    return
+  end
+
+  local background
+  if style == "auto" then
+    -- Frosted glass is two things at once, and one alone reads as neither: a
+    -- *tint* picked up from what is behind it, and a *lift* from the light
+    -- caught in the surface. A pure accent tint looks like coloured film; a
+    -- pure white lift looks like grey dust. Layering them — tint the backdrop
+    -- with the accent, then lift that toward white — gives a band that is
+    -- faintly of the theme's colour and faintly luminous, which is what reads
+    -- as glass.
+    local tinted = ui.blend(palette.accent, ui.base_bg(), 0.12)
+    background = ui.blend(palette.is_dark and "#ffffff" or "#000000", tinted, 0.05)
+  elseif style == "frost" then
+    background = ui.frost(0.07)
+  else
+    -- A group with no background and no attributes composites to nothing, so
+    -- the line renders exactly as it would without 'cursorline'.
+    background = "NONE"
+  end
+
+  vim.api.nvim_set_hl(0, "CursorLine", { bg = background })
+
+  -- The gutter is part of the band, not a gap in it. `CursorLineNr` replaces
+  -- `LineNr` on the cursor row and `CursorLineSign`/`Fold` do the same for the
+  -- sign and fold columns; leaving their backgrounds unset lets the editor
+  -- background show through and cuts the glass into two pieces with a notch
+  -- between them.
+  local gutter = background ~= "NONE" and background or nil
+
+  vim.api.nvim_set_hl(0, "CursorLineNr", { fg = palette.accent, bg = gutter, bold = true })
+  vim.api.nvim_set_hl(0, "CursorLineSign", { bg = gutter })
+  vim.api.nvim_set_hl(0, "CursorLineFold", { bg = gutter })
+end
+
 local function apply()
   -- `remember_base_bg` falls back to the theme's declared background and then
   -- to the last known good value. Reading `Normal.bg` alone would return nil
@@ -225,13 +298,7 @@ local function apply()
   -- terminal shows through.
   style_code_overlays(palette)
 
-  -- A lifted cursorline reads on both dark and light themes; a hard-coded dark
-  -- value disappears entirely on anything pale. `ui.frost()` and not the
-  -- accent-tinted panel: this is a band across the full width of the editor,
-  -- and on a theme with a vivid accent a tinted one reads as colored film over
-  -- the line you are working on.
-  set(0, "CursorLine", { bg = ui.frost(0.07) })
-  set(0, "CursorLineNr", { fg = palette.accent, bold = true })
+  style_cursorline(palette)
 end
 
 --- Turn the glass look on/off (no argument toggles).

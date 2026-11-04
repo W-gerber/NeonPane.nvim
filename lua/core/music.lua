@@ -7,7 +7,14 @@ local state = {
   win = nil,
   width = 24,
   height = 3,
-  winblend = 80,
+  -- 0, like every other float in this config. `winblend` composites the panel
+  -- against the editor cells beneath it, and where those have no background it
+  -- falls back to the default one — so a blended pane over a transparent editor
+  -- comes out as a dark sheet with washed-out text, which is the opposite of
+  -- the effect an acrylic terminal is already producing one layer down.
+  -- See the note on `core.ui.pane_bg()`; noice, telescope, which-key and the
+  -- theme picker all pin this to 0 for the same reason.
+  winblend = 0,
   panel_position = "top-right",
   pending_query = false,
   setup_done = false,
@@ -118,12 +125,22 @@ local function apply_highlights()
   local p = ui.palette()
   local set_hl = vim.api.nvim_set_hl
 
-  set_hl(0, "MusicTitle", { fg = p.pink, bg = "NONE", bold = true })
-  set_hl(0, "MusicArtist", { fg = p.cyan, bg = "NONE" })
-  set_hl(0, "MusicBorder", { fg = p.purple, bg = "NONE" })
+  -- One surface for the whole panel: nothing at all while the glass preference
+  -- is on, a frosted sheet otherwise. Hard-coding "NONE" here was the bug — it
+  -- left the panel see-through even on opaque themes, where every other float
+  -- (and `NormalFloat` itself) draws a background.
+  --
+  -- The three text groups below are extmarks painted *over* that surface, so
+  -- they have to carry the same background; give one of them its own and that
+  -- row reads as a differently-coloured stripe across the panel.
+  local pane = ui.pane_bg(0.1)
+
+  set_hl(0, "MusicTitle", { fg = p.pink, bg = pane, bold = true })
+  set_hl(0, "MusicArtist", { fg = p.cyan, bg = pane })
+  set_hl(0, "MusicBorder", { fg = p.purple, bg = pane })
   set_hl(0, "MusicAccent", { fg = p.yellow, bold = true })
-  set_hl(0, "MusicStatus", { fg = p.fg, bg = "NONE", bold = true })
-  set_hl(0, "MusicNormal", { fg = p.fg, bg = "NONE" })
+  set_hl(0, "MusicStatus", { fg = p.fg, bg = pane, bold = true })
+  set_hl(0, "MusicNormal", { fg = p.fg, bg = pane })
 end
 
 local function ensure_highlight_autocmd()
@@ -286,11 +303,7 @@ local function open_panel()
   local buf = ensure_panel_buffer()
   state.win = vim.api.nvim_open_win(buf, false, panel_position())
   vim.api.nvim_set_option_value("winblend", state.winblend, { win = state.win })
-  vim.api.nvim_set_option_value(
-    "winhighlight",
-    "NormalFloat:MusicNormal,Normal:MusicNormal,FloatBorder:MusicBorder,FloatTitle:MusicBorder",
-    { win = state.win }
-  )
+  vim.api.nvim_set_option_value("winhighlight", WINHIGHLIGHT, { win = state.win })
 
   render_panel()
 end
@@ -413,30 +426,6 @@ $playback = $session.GetPlaybackInfo()
 ]],
       invoke_action
     )
-end
-
-local function ps_volume_key_script(vk_hex)
-  return string.format(
-    [[
-$ErrorActionPreference = 'Stop'
-Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-
-public static class MusicNative {
-  [DllImport("user32.dll")]
-  public static extern void keybd_event(byte bVk, byte bScan, int dwFlags, int dwExtraInfo);
-}
-"@ | Out-Null
-
-$vk = [byte]%s
-[MusicNative]::keybd_event($vk, 0, 0, 0)
-[MusicNative]::keybd_event($vk, 0, 2, 0)
-
-[pscustomobject]@{ ok = $true } | ConvertTo-Json -Compress
-]],
-    vk_hex
-  )
 end
 
 local function ps_set_volume_script(percent)
@@ -633,7 +622,9 @@ local function adjust_poll_interval(active)
 end
 
 local function refresh_cache_silent()
-  if state.pending_query or not is_windows() then
+  -- Unfocused, nobody is looking at the segment; each poll is a PowerShell
+  -- spawn, and every background Neovim instance would otherwise keep paying it.
+  if state.pending_query or not is_windows() or state.unfocused then
     return
   end
 
@@ -678,15 +669,6 @@ local function run_action(action_name)
     if payload.commandOk == false then
       warn("Media session rejected command", "Command: " .. tostring(action_name))
     end
-  end)
-end
-
-local function run_volume_key(vk_hex)
-  run_ps(ps_volume_key_script(vk_hex), function(ok, payload, err, detail)
-    if ok then
-      return
-    end
-    debug_log("volume key failed", { err = err, detail = detail, payload = payload })
   end)
 end
 
@@ -759,16 +741,6 @@ function M.statusline_status()
     return nil
   end
   return normalize_status(info.status)
-end
-
-function M.volume_up()
-  -- VK_VOLUME_UP (0xAF)
-  run_volume_key("0xAF")
-end
-
-function M.volume_down()
-  -- VK_VOLUME_DOWN (0xAE)
-  run_volume_key("0xAE")
 end
 
 function M.set_volume(percent)
@@ -882,6 +854,11 @@ function M.setup(opts)
 
   apply_highlights()
   ensure_highlight_autocmd()
+
+  vim.api.nvim_create_autocmd({ "FocusLost", "FocusGained" }, {
+    group = vim.api.nvim_create_augroup("MusicFocus", { clear = true }),
+    callback = function(event) state.unfocused = event.event == "FocusLost" end,
+  })
 
   -- Keep the floating panel anchored when the window is resized.
   vim.api.nvim_create_autocmd("VimResized", {

@@ -7,13 +7,17 @@
 
 local icons = require("core.icons")
 
--- Tabs across the top of the tree. Padded so the active one reads as a chip
--- rather than a word with a line under it.
-local SOURCES = {
-  { source = "filesystem", display_name = " \u{f0770} Files " }, -- nf-md-folder
-  { source = "buffers", display_name = " \u{f0219} Buffers " }, -- nf-md-file_multiple
-  { source = "git_status", display_name = " \u{f02a2} Git " }, -- nf-md-source_branch
-}
+-- The tree is the file tree and nothing else. The Buffers and Git tabs are
+-- gone, which leaves one source — so the tab strip along the top goes with
+-- them (`source_selector.winbar = false` below): a single tab is a label, not
+-- a control, and it costs a row of the sidebar to say something the sidebar
+-- already is.
+--
+-- Buffers and git status are still reachable, just not from here: <leader>bs
+-- and <leader>fb list buffers, <leader>g* is gitsigns, <leader>gl is Lazygit.
+-- Git *decorations* in the tree are unaffected — those are `enable_git_status`
+-- below, which is a different thing from the git_status source.
+local SOURCES = { "filesystem" }
 
 return {
   "nvim-neo-tree/neo-tree.nvim",
@@ -37,6 +41,9 @@ return {
     local ui = require("core.ui")
 
     require("neo-tree").setup({
+      -- Only the filesystem source is loaded; the other two are not merely
+      -- hidden from the tab strip, they are never set up.
+      sources = SOURCES,
       close_if_last_window = true,
       popup_border_style = "rounded",
       enable_git_status = true,
@@ -94,20 +101,8 @@ return {
           ["?"] = "show_help",
         },
       },
-      source_selector = {
-        winbar = true,
-        statusline = false,
-        sources = SOURCES,
-        content_layout = "center",
-        tabs_layout = "equal",
-        show_separator_on_edge = false,
-        separator = { left = "", right = "" },
-        highlight_tab = "NeoTreeTabInactive",
-        highlight_tab_active = "NeoTreeTabActive",
-        highlight_background = "NeoTreeTabInactive",
-        highlight_separator = "NeoTreeTabSeparatorInactive",
-        highlight_separator_active = "NeoTreeTabSeparatorActive",
-      },
+      -- Only one source is loaded, so there is nothing to select between.
+      source_selector = { winbar = false, statusline = false },
       filesystem = {
         follow_current_file = { enabled = true, leave_dirs_open = true },
         group_empty_dirs = true,
@@ -167,6 +162,17 @@ return {
         git_status = {
           -- Symbols rather than letters: they sit in one column and read as
           -- state, not as text competing with the filename.
+          --
+          -- Every key is set, including the ones that look redundant. Git
+          -- reports a two-character status (staged, then unstaged), so
+          -- Neo-tree draws two of these per row and falls back to its own
+          -- defaults for any key left out — and its default `unstaged` is
+          -- `nf-md-checkbox_blank_outline`, an empty checkbox, which is the
+          -- hollow square that was appearing next to every modified file.
+          --
+          -- The whole set is Octicons so the column reads as one alphabet:
+          -- filled dot for changed, hollow dot for not-yet-staged, check for
+          -- staged.
           symbols = {
             added = icons.git.added,
             modified = icons.git.modified,
@@ -174,8 +180,9 @@ return {
             renamed = icons.git.renamed,
             untracked = icons.git.untracked,
             ignored = icons.git.ignored,
-            staged = "\u{f00c}", -- check
-            conflict = "\u{f071}", -- warning triangle
+            unstaged = "\u{f4c3}", -- nf-oct-dot
+            staged = "\u{f42e}", -- nf-oct-check
+            conflict = "\u{f421}", -- nf-oct-alert
           },
         },
         diagnostics = {
@@ -215,11 +222,7 @@ return {
       hl(0, "NeoTreeRootName", { fg = p.accent, bg = "NONE", bold = true })
       hl(0, "NeoTreeTitleBar", { fg = p.accent, bg = ui.pane_bg(0.14), bold = true })
 
-      -- Source tabs. The active one is an accent chip; the others recede.
-      hl(0, "NeoTreeTabActive", { fg = p.accent, bg = ui.frost(0.14), bold = true })
-      hl(0, "NeoTreeTabInactive", { fg = p.muted, bg = "NONE" })
-      hl(0, "NeoTreeTabSeparatorActive", { fg = ui.frost(0.14), bg = ui.frost(0.14) })
-      hl(0, "NeoTreeTabSeparatorInactive", { fg = p.bg, bg = "NONE" })
+      -- (The NeoTreeTab* groups are gone with the source selector.)
 
       -- Tree body.
       hl(0, "NeoTreeDirectoryIcon", { fg = p.accent, bg = "NONE" })

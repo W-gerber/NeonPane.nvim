@@ -186,7 +186,12 @@ return {
 
       -- The selected row keeps a background either way: it is one line, and
       -- without it there is nothing marking the selection but the text color.
-      local selected = ui.frost(0.18)
+      --
+      -- The theme's own Visual colour rather than `frost()`: a neutral white
+      -- lift goes grey on a saturated backdrop, which on an opaque panel put a
+      -- grey bar across a violet popup. This is the same fill the editor uses
+      -- for a selection everywhere else, so it reads as one.
+      local selected = p.selection_bg
 
       -- Rim tones mix against the theme's backdrop, not the pane, which may
       -- have no color to mix with.

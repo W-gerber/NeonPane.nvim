@@ -119,22 +119,9 @@ return {
         map("n", "<leader>rn", vim.lsp.buf.rename, "LSP: Rename")
         map({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, "LSP: Code action")
 
-        -- Diagnostics
-        map("n", "[d", function() vim.diagnostic.jump({ count = -1 }) end, "Previous diagnostic")
-        map("n", "]d", function() vim.diagnostic.jump({ count = 1 }) end, "Next diagnostic")
-        map(
-          "n",
-          "[e",
-          function() vim.diagnostic.jump({ count = -1, severity = vim.diagnostic.severity.ERROR }) end,
-          "Previous error"
-        )
-        map(
-          "n",
-          "]e",
-          function() vim.diagnostic.jump({ count = 1, severity = vim.diagnostic.severity.ERROR }) end,
-          "Next error"
-        )
-        map("n", "<leader>d", vim.diagnostic.open_float, "Diagnostic: line float")
+        -- Diagnostic navigation is deliberately *not* here: `vim.diagnostic` is
+        -- fed by nvim-lint too, so those keys have to exist in buffers no
+        -- language server ever attaches to. See core/keymaps.lua.
       end,
     })
 
@@ -226,13 +213,14 @@ return {
         },
       },
 
-      basedpyright = {
+      -- pyright rather than basedpyright: basedpyright's pip build fails on
+      -- this machine. Plain pyright has no inlay hints.
+      pyright = {
         settings = {
-          basedpyright = {
+          python = {
             analysis = {
               typeCheckingMode = "standard",
               autoImportCompletions = true,
-              inlayHints = { variableTypes = true, functionReturnTypes = true },
             },
           },
         },
