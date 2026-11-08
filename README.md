@@ -1,9 +1,9 @@
 <div align="center">
 
-# Nvim-Config
+# NeonPane.nvim
 
-A Windows-first Neovim setup: IDE-style workspaces, a live theme switcher, and
-custom pill-shaped chrome that follows whatever theme is active.
+A Windows-first Neovim configuration with IDE-style workspaces, live theme
+previews, and custom chrome that follows the active colorscheme.
 
 [![Neovim](https://img.shields.io/badge/Neovim-0.11+-green.svg?style=flat-square&logo=neovim)](https://neovim.io)
 [![Lua](https://img.shields.io/badge/Lua-LuaJIT-purple.svg?style=flat-square&logo=lua)](https://www.lua.org)
@@ -13,14 +13,34 @@ custom pill-shaped chrome that follows whatever theme is active.
 
 ---
 
+## At a glance
+
+- **A themed workspace:** a file explorer, buffer tabs, statusline, and pickers
+  that adapt to the selected theme.
+- **12 themes:** preview a theme before applying it, with an optional transparent
+  background for terminals that support it.
+- **Code tools:** Treesitter, LSP, completion, formatting, linting, diagnostics,
+  debugging, and Git integrations.
+- **Three dashboards:** choose a Neovim-style intro, a classic action menu, or
+  a startify-style screen.
+
 ## Showcase
 
-<div align="center">
+The captures below show the current configuration with the `neon_vommit` theme
+and an opaque background. They were rendered from Neovim's UI in an isolated
+demo workspace.
 
-![Nvim Dashboard](https://raw.githubusercontent.com/W-gerber/Nvim-Config/main/screenshots/dashboard.png)
-![Nvim Dashboard](https://raw.githubusercontent.com/W-gerber/Nvim-Config/main/screenshots/dashboard1.png)
+**Editor and file explorer**
 
-</div>
+![NeonPane editor with Lua syntax highlighting and the file explorer](screenshots/neonpane-editor.png)
+
+**Classic dashboard**
+
+![NeonPane classic dashboard with workspace actions](screenshots/neonpane-dashboard.png)
+
+**Live theme picker**
+
+![NeonPane theme picker showing the available themes and color swatches](screenshots/neonpane-themes.png)
 
 ---
 
@@ -33,10 +53,29 @@ custom pill-shaped chrome that follows whatever theme is active.
 | **git** | required to bootstrap lazy.nvim |
 | **C compiler** | required to build Treesitter parsers — MSYS2 + MinGW64 on Windows, `xcode-select --install` on macOS, gcc/clang on Linux |
 | **ripgrep** | Telescope live grep and todo-comments search |
-| **Optional** | `fd` (faster file finding), `lazygit` for `<leader>lg`, PowerShell 7 for the folder picker and media controls |
+| **Optional** | `fd` (faster file finding), `lazygit` for `<leader>gl`, PowerShell 7 for the Windows folder picker and media controls |
 
-Clone into `%LOCALAPPDATA%\nvim` (Windows) or `~/.config/nvim` (Linux/macOS) and
-start Neovim; lazy.nvim bootstraps itself and installs the plugin set. Then:
+## Installation
+
+Back up any existing Neovim configuration first. This repository is a **full
+configuration**, not a plugin to add to an existing setup.
+
+Windows (PowerShell):
+
+```powershell
+git clone https://github.com/W-gerber/NeonPane.nvim.git "$env:LOCALAPPDATA\nvim"
+nvim
+```
+
+Linux/macOS:
+
+```sh
+git clone https://github.com/W-gerber/NeonPane.nvim.git "${XDG_CONFIG_HOME:-$HOME/.config}/nvim"
+nvim
+```
+
+On first launch, lazy.nvim bootstraps itself and installs the plugins. Open
+Neovim and run:
 
 ```vim
 :checkhealth core   " verifies compiler, external tools, theme cache
@@ -46,6 +85,9 @@ start Neovim; lazy.nvim bootstraps itself and installs the plugin set. Then:
 `:checkhealth core` is the first thing to run when something misbehaves — it
 compiles a test program rather than just looking for `gcc` on `PATH`, which is
 what distinguishes a missing toolchain from a shadowed one.
+
+Start with `<Tab>` for the leader-key menu, `<Space>ff` to find a file,
+`<Space>e` for the explorer, and `<Space>up` to preview themes.
 
 ---
 
@@ -101,7 +143,7 @@ Also included: `neon commit` (the original house theme), `tokyonight`, `dracula`
 `default light`, and the catppuccin / onedarkpro / evergarden / bamboo / yorumi /
 lavi plugins.
 
-- `<leader>th` opens the picker; moving the selection previews live, `<Enter>`
+- `<leader>up` opens the picker; moving the selection previews live, `<Enter>`
   applies and persists, `<Esc>` reverts.
 - The choice is saved to `ui_state.json` under `stdpath("data")`.
 - Adding a theme: see [`lua/themes/README.md`](lua/themes/README.md).
@@ -147,27 +189,29 @@ picker — and the rest of the titles are plain accent text. Per-picker override
 only change proportions: grep gives the larger half to the preview, the buffer
 list has no preview and shrinks to fit.
 
-The explorer has source tabs across the top (Files / Buffers / Git), indent
-guides that end in the same `╰` as every other rim in the UI, git state and
-diagnostics in their own columns, and no background of its own.
+The filesystem explorer has indent guides that end in the same `╰` as every
+other rim in the UI, git state and diagnostics in their own columns, and no
+background of its own. Use `<leader>bs` for buffers and `<leader>gl` for
+Lazygit.
 
 ### Dashboard
 
-The start screen comes in two styles, switched with `:Dashboard intro|classic`
-(`<leader>ua` cycles) and remembered in `ui_state.json`:
+The start screen comes in three styles, selected with `<leader>ua` or
+`:Dashboard [intro|classic|startify]` and remembered in `ui_state.json`:
 
 - **intro** (default) — a copy of Neovim's own startup screen, down to its
   logo, rules and highlight groups, so it looks like `nvim --clean`.
 - **classic** — the block-letter logo over the action buttons (find file,
   recent files, grep, workspaces, sessions, plugins, health) plus the
   plugins-loaded footer.
+- **startify** — fortune, recent files, sessions, and bookmarks.
 
 ---
 
 ## Keymaps
 
-Leader is `<Space>`. Press `<leader>` and wait for which-key, or hit
-`<leader>fk` to search every mapping.
+Leader is `<Space>`. Press `<Tab>` to open the leader-key menu, `<leader>?`
+for the full which-key menu, or `<leader>fk` to search mappings.
 
 ### Prefix map
 
@@ -179,10 +223,8 @@ Leader is `<Space>`. Press `<leader>` and wait for which-key, or hit
 | `<leader>D` | Debug (DAP) |
 | `<leader>f` | Find (Telescope) |
 | `<leader>g` | Git hunks |
-| `<leader>l` | Lazygit |
 | `<leader>m` | Music |
-| `<leader>s` | Sessions |
-| `<leader>t` | Tools (terminal, theme) |
+| `<leader>s` | Splits and sessions |
 | `<leader>u` | UI toggles |
 | `<leader>x` | Trouble / diagnostics lists |
 
@@ -192,7 +234,9 @@ Leader is `<Space>`. Press `<leader>` and wait for which-key, or hit
 |---|---|
 | `<leader>ff` / `<leader>fg` | find files / live grep in the workspace |
 | `<leader>fw` / `<leader>f/` | grep word under cursor / search in current buffer |
-| `<leader>fb` / `<leader>fr` | open buffers / recent files |
+| `<leader>bs` / `<leader>fr` | open buffers / recent files |
+| `<leader>fe` / `<leader>fE` | file browser at workspace / current file |
+| `<leader>fx` | project search and replace |
 | `<leader>fs` / `<leader>fd` | document symbols / diagnostics |
 | `<leader>fk` / `<leader>fc` | keymaps / commands |
 | `<leader>fh` / `<leader>fR` | help tags / resume last picker |
@@ -210,7 +254,8 @@ Leader is `<Space>`. Press `<leader>` and wait for which-key, or hit
 | `<leader>bn` `<leader>bc` `<leader>bo` | new / close / close others (add `Shift` to force) |
 | `<C-h/j/k/l>` | move between windows |
 | `<C-Up/Down/Left/Right>` | resize the current window |
-| `<leader>vs` / `<leader>hs` | split, choosing the target window |
+| `<leader>sv` / `<leader>sh` | split, choosing the target window |
+| `<leader>w` | jump to a chosen window |
 | `<leader>q` | close window |
 
 Buffer pills are clickable: left-click focuses, middle-click closes.
@@ -226,7 +271,7 @@ Buffer pills are clickable: left-click focuses, middle-click closes.
 | `<leader>ch` / `<leader>cl` | toggle inlay hints / lint now |
 | `<leader>cs` / `<leader>cS` | swap argument with next / previous |
 | `[d` / `]d` · `[e` / `]e` | previous / next diagnostic · error |
-| `<leader>d` | line diagnostics |
+| `<leader>xd` | line diagnostics |
 | `<leader>xx` … | Trouble lists (diagnostics, symbols, quickfix, todos) |
 | `s` / `S` | Flash jump / Flash Treesitter |
 
@@ -243,7 +288,7 @@ of them with `;` / `,`.
 | `<leader>gs` / `<leader>gr` | stage (toggle) / reset hunk |
 | `<leader>gp` / `<leader>gb` | preview hunk / blame line |
 | `<leader>gd` / `<leader>gD` | diff against index / last commit |
-| `<leader>lg` | Lazygit |
+| `<leader>gl` | Lazygit |
 | `ih` | hunk text object (`dih`, `vih`) |
 
 ### Debug
@@ -262,18 +307,18 @@ picked up automatically when present.
 
 | Key | Action |
 |---|---|
-| `<leader>th` | theme picker (live preview, `<Esc>` reverts) |
+| `<leader>up` | theme picker (live preview, `<Esc>` reverts) |
 | `<leader>ub` | toggle background transparency |
 | `<leader>uw` `<leader>un` `<leader>ud` | toggle wrap / relative numbers / diagnostics |
-| `<leader>ua` | switch dashboard style (intro / classic) |
-| `<leader>mm` | music panel (`mp` play-pause, `mn`/`mb` skip, `mu`/`md` volume) |
-| `<leader>tt` | terminal |
+| `<leader>ua` | choose dashboard style (intro / classic / startify) |
+| `<leader>mm` | music panel (`mp` play-pause, `mn`/`mb` skip, `mv` set volume) |
+| `<leader>ut` / `<leader>uT` | toggle terminal / new terminal tab |
 | `<leader>a…` | Claude Code |
 
 ### Commands
 
 `:OpenFolder` · `:Theme [name]` · `:Transparency [on|off]` ·
-`:Dashboard [intro|classic]` · `:Music [action]` · `:MusicDebug` · `:Lazy` ·
+`:Dashboard [intro|classic|startify]` · `:Music [action]` · `:MusicDebug` · `:Lazy` ·
 `:Mason` · `:ConformInfo` · `:checkhealth core`
 
 ---
